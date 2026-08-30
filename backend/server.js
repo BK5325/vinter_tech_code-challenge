@@ -43,7 +43,7 @@ const allowedOrigins = [
   clientUrl,
   'http://localhost:3000',
   'http://localhost:5173',
-  'https://vinter-tech-code-challenge-fcn3.vercel.app' // Hardcoded frontend URL
+  'https://vintertech-code-challenge.vercel.app' // Hardcoded frontend URL
 ].filter(Boolean);
 
 app.use(cors({
