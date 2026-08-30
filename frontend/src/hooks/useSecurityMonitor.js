@@ -11,7 +11,7 @@ import { attemptService } from '../services/attemptService';
  * They cannot prevent OS-level screenshots, external cameras, or advanced tools.
  * Events are indicators only — not confirmed violations.
  */
-export const useSecurityMonitor = ({ attemptId, enabled = true, onViolation }) => {
+export const useSecurityMonitor = ({ attemptId, enabled = true, onViolation, onForceSubmit }) => {
   const attemptIdRef = useRef(attemptId);
   const enabledRef   = useRef(enabled);
 
@@ -21,12 +21,15 @@ export const useSecurityMonitor = ({ attemptId, enabled = true, onViolation }) =
   const logEvent = useCallback(async (eventType, metadata = {}) => {
     if (!enabledRef.current || !attemptIdRef.current) return;
     try {
-      await attemptService.logSecurityEvent(attemptIdRef.current, eventType, metadata);
+      const res = await attemptService.logSecurityEvent(attemptIdRef.current, eventType, metadata);
+      if (res?.data?.attempt && res.data.attempt.status !== 'IN_PROGRESS') {
+        if (onForceSubmit) onForceSubmit(res.data.attempt);
+      }
     } catch {
       // Silently fail — don't interrupt the assessment
     }
     if (onViolation) onViolation(eventType);
-  }, [onViolation]);
+  }, [onViolation, onForceSubmit]);
 
   useEffect(() => {
     if (!enabled) return;
