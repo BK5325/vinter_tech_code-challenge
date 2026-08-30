@@ -12,17 +12,17 @@ const generateObjectId = () => {
 };
 
 const EMPTY_OPTION = () => ({ text: '', _id: generateObjectId() });
-const defaultForm = {
+const getDefaultForm = () => ({
   questionText: '', questionType: 'OMR',
   options: [EMPTY_OPTION(), EMPTY_OPTION(), EMPTY_OPTION(), EMPTY_OPTION()],
   correctAnswer: '', multipleCorrect: false,
   evaluationMode: 'CASE_INSENSITIVE',
   marks: 1, negativeMarks: 0,
   difficulty: 'MEDIUM', category: 'General', explanation: '',
-};
+});
 
 function QuestionForm({ question, challengeId, onSave, onCancel }) {
-  const [form, setForm] = useState(question ? { ...defaultForm, ...question } : { ...defaultForm, challengeId });
+  const [form, setForm] = useState(question ? { ...getDefaultForm(), ...question } : { ...getDefaultForm(), challengeId });
   const [loading, setLoading] = useState(false);
   const toast = useToast();
 
