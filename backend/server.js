@@ -38,7 +38,7 @@ app.use(helmet({
 
 // ─── CORS ─────────────────────────────────────────────────────────────────────
 const allowedOrigins = [
-  process.env.CLIENT_URL,
+  "https://vinter-tech-code-challenge.onrender.com",
   'http://localhost:3000',
   'http://localhost:5173',
 ].filter(Boolean);
