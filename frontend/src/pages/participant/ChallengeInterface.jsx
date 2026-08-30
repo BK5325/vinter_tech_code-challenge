@@ -263,7 +263,7 @@ export default function ChallengeInterface() {
 
         // Fetch ordered questions from backend
         const qRes = await api.get(`/challenges/${challengeId}/questions-participant?attemptId=${att._id}`);
-        const orderedQuestions = qRes.data?.data?.questions || [];
+        const orderedQuestions = qRes.data?.questions || [];
 
         // Build answers map
         const answerMap = {};
@@ -307,6 +307,11 @@ export default function ChallengeInterface() {
     attemptId: attempt?._id,
     enabled: !!attempt && !submitted,
     onViolation: handleViolation,
+    onForceSubmit: (updatedAttempt) => {
+      setSubmitted(true);
+      toast.error('Challenge auto-submitted due to security policy violations.');
+      navigate(`/dashboard/result/${updatedAttempt._id}`);
+    }
   });
 
   // ── Autosave ────────────────────────────────────────────────────────────
