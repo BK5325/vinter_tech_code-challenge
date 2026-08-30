@@ -25,6 +25,7 @@ export default function ParticipantLayout() {
 
   return (
     <div className="app-layout">
+      {/* Desktop Sidebar */}
       <aside className="sidebar" role="navigation" aria-label="Participant navigation">
         <div className="sidebar-header">
           <div className="sidebar-logo">
@@ -56,7 +57,34 @@ export default function ParticipantLayout() {
           </button>
         </div>
       </aside>
+
+      {/* Main Content */}
       <div className="main-content"><Outlet /></div>
+
+      {/* Mobile Bottom Navigation Bar */}
+      <nav className="mobile-nav" aria-label="Mobile navigation">
+        <div className="mobile-nav-inner">
+          {NAV.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.end}
+              className={({ isActive }) => `mobile-nav-link${isActive ? ' active' : ''}`}
+            >
+              <span className="mobile-nav-link-icon">{item.icon}</span>
+              {item.label}
+            </NavLink>
+          ))}
+          <button
+            onClick={handleLogout}
+            className="mobile-nav-link"
+            style={{ background: 'none', border: 'none', cursor: 'pointer' }}
+          >
+            <span className="mobile-nav-link-icon">🚪</span>
+            Logout
+          </button>
+        </div>
+      </nav>
     </div>
   );
 }
