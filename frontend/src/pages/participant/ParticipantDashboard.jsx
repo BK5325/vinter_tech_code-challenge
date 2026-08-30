@@ -3,9 +3,11 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { challengeService } from '../../services/challengeService';
 import { resultService } from '../../services/adminService';
+import { useToast } from '../../context/ToastContext';
 
 export default function ParticipantDashboard() {
   const { user } = useAuth();
+  const toast = useToast();
   const [challenges, setChallenges] = useState([]);
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -15,10 +17,13 @@ export default function ParticipantDashboard() {
       challengeService.getAll({ limit: 5 }),
       resultService.getAll({ limit: 5 }),
     ]).then(([c, r]) => {
-      setChallenges(c.data.challenges);
-      setResults(r.data.results);
+      setChallenges(c?.data?.challenges || []);
+      setResults(r?.data?.results || []);
+    }).catch((err) => {
+      console.error(err);
+      toast.error(err.message || 'Failed to load dashboard data');
     }).finally(() => setLoading(false));
-  }, []);
+  }, [toast]);
 
   const initials = user?.name?.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2) || 'P';
 

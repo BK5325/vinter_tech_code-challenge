@@ -10,8 +10,10 @@ export default function ChallengeListPage() {
   useEffect(() => {
     setLoading(true);
     challengeService.getAll({ search, status: 'ACTIVE' })
-      .then((d) => setChallenges(d.data.challenges))
-      .catch(() => {})
+      .then((d) => setChallenges(d?.data?.challenges || []))
+      .catch((err) => {
+        console.error(err);
+      })
       .finally(() => setLoading(false));
   }, [search]);
 
