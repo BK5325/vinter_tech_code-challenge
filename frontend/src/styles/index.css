@@ -813,6 +813,7 @@ p  { color: var(--color-text-2); line-height: 1.7; }
   color: var(--color-text);
   margin: 1rem 0 1.5rem;
   user-select: none;
+  white-space: pre-wrap;
 }
 
 /* Options */
@@ -1051,8 +1052,13 @@ p  { color: var(--color-text-2); line-height: 1.7; }
   .grid-cols-3 { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 768px) {
-  .challenge-layout { grid-template-columns: 1fr; }
-  .palette-sidebar { display: none; }
+  .challenge-layout { grid-template-columns: 1fr; display: flex; flex-direction: column; }
+  .palette-sidebar {
+    position: relative;
+    height: auto;
+    border-left: none;
+    border-top: 1px solid var(--color-border);
+  }
   .auth-card { padding: 1.75rem; }
   h1 { font-size: 1.625rem; }
   .page-container { padding: 1rem; }
