@@ -262,8 +262,15 @@ export default function ChallengeInterface() {
         setAttempt(att);
 
         // Fetch ordered questions from backend
+        // Axios interceptor returns res.data (the full JSON body)
+        // Backend responds: { success: true, data: { questions: [...] } }
+        // So qRes = { success:true, data: { questions:[...] } }  →  qRes.data.questions
         const qRes = await api.get(`/challenges/${challengeId}/questions-participant?attemptId=${att._id}`);
         const orderedQuestions = qRes.data?.questions || [];
+
+        if (orderedQuestions.length === 0) {
+          throw new Error('This challenge has no questions yet. Please contact your admin.');
+        }
 
         // Build answers map
         const answerMap = {};
@@ -271,7 +278,7 @@ export default function ChallengeInterface() {
           answerMap[a.questionId.toString()] = { answerData: a.answerData, markedForReview: a.markedForReview };
         });
 
-        setQuestions(orderedQuestions.length ? orderedQuestions : att.questionOrder.map((id) => ({ _id: id })));
+        setQuestions(orderedQuestions);
         setAnswers(answerMap);
 
         if (d.data.isRecovery) {
