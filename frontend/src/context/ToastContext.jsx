@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
 
 const ToastContext = createContext(null);
 
@@ -11,12 +11,12 @@ export const ToastProvider = ({ children }) => {
     setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), duration);
   }, []);
 
-  const toast = {
+  const toast = useMemo(() => ({
     success: (msg, dur) => addToast(msg, 'success', dur),
     error:   (msg, dur) => addToast(msg, 'error', dur),
     warning: (msg, dur) => addToast(msg, 'warning', dur),
     info:    (msg, dur) => addToast(msg, 'info', dur),
-  };
+  }), [addToast]);
 
   const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
 

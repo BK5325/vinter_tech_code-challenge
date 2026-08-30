@@ -22,18 +22,21 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     const response = await authService.login(email, password);
+    if (response.data.token) localStorage.setItem('token', response.data.token);
     setUser(response.data.user);
     return response;
   };
 
   const register = async (formData) => {
     const response = await authService.register(formData);
+    if (response.data.token) localStorage.setItem('token', response.data.token);
     setUser(response.data.user);
     return response;
   };
 
   const logout = async () => {
     await authService.logout();
+    localStorage.removeItem('token');
     setUser(null);
   };
 
