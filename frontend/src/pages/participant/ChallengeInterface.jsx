@@ -19,7 +19,7 @@ const formatTime = (secs) => {
 const AUTOSAVE_DEBOUNCE_MS = 800;
 
 /* ─── Question Palette ────────────────────────────────────────────────────── */
-function QuestionPalette({ questions, answers, currentIdx, onNavigate }) {
+function QuestionPalette({ questions, answers, currentIdx, onNavigate, isOpen, onClose }) {
   const getStatus = (qId) => {
     const a = answers[qId];
     const hasAnswer = a?.answerData !== null && a?.answerData !== undefined && a?.answerData !== '';
