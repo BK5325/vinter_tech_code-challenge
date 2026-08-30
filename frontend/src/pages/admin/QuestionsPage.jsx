@@ -4,8 +4,14 @@ import { questionService } from '../../services/questionService';
 import { challengeService } from '../../services/challengeService';
 import { useToast } from '../../context/ToastContext';
 
-const EMPTY_OPTION = () => ({ text: '', _id: Date.now().toString() });
+// Generate a valid 24-character hex string (ObjectId) so Mongoose accepts it for new options
+const generateObjectId = () => {
+  const timestamp = Math.floor(new Date().getTime() / 1000).toString(16);
+  const randomChars = 'xxxxxxxxxxxxxxxx'.replace(/[x]/g, () => Math.floor(Math.random() * 16).toString(16));
+  return timestamp + randomChars;
+};
 
+const EMPTY_OPTION = () => ({ text: '', _id: generateObjectId() });
 const defaultForm = {
   questionText: '', questionType: 'OMR',
   options: [EMPTY_OPTION(), EMPTY_OPTION(), EMPTY_OPTION(), EMPTY_OPTION()],
