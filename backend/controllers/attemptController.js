@@ -351,10 +351,30 @@ const logSecurityEvent = async (req, res, next) => {
         challenge.securitySettings.autoSubmitOnViolation &&
         updatedAttempt.violationCount >= challenge.securitySettings.violationThreshold
       ) {
-        // Trigger auto-submit
-        req.body.reason = 'VIOLATION_THRESHOLD';
-        req.params.id = attempt._id.toString();
-        return submitAttempt(req, res, next);
+        // Auto-submit: score and mark as AUTO_SUBMITTED
+        const { scoreAttempt } = require('../services/scoringService');
+        const scoringResult = await scoreAttempt(updatedAttempt, challenge);
+        const now = new Date();
+        const timeTaken = Math.round((now - updatedAttempt.startedAt) / 1000);
+
+        const autoSubmitted = await Attempt.findByIdAndUpdate(
+          attempt._id,
+          { status: 'AUTO_SUBMITTED', submittedAt: now, submissionReason: 'VIOLATION_THRESHOLD', timeTaken, ...scoringResult },
+          { new: true }
+        );
+
+        await AuditLog.create({
+          userId: attempt.userId, userEmail: req.user.email,
+          action: 'ATTEMPT_AUTO_SUBMIT',
+          description: `Auto-submitted due to violation threshold: ${attempt._id}`,
+          relatedEntityId: attempt._id, relatedEntityType: 'Attempt', ipAddress: req.ip,
+        });
+
+        return res.status(200).json({
+          success: true,
+          message: 'Violation threshold reached. Attempt auto-submitted.',
+          data: { attempt: autoSubmitted, autoSubmitted: true },
+        });
       }
     }
 

@@ -157,19 +157,43 @@ const deleteUser = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Cannot delete your own account.' });
     }
 
-    const user = await User.findByIdAndDelete(req.params.id);
+    const user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ success: false, message: 'User not found.' });
+
+    // ── Cascade delete all related data ───────────────────────────────────
+    const Attempt    = require('../models/Attempt');
+    const Answer     = require('../models/Answer');
+    const SecurityEvent = require('../models/SecurityEvent');
+
+    // Find all attempts by this user first
+    const userAttempts = await Attempt.find({ userId: user._id }).select('_id');
+    const attemptIds = userAttempts.map((a) => a._id);
+
+    // Delete answers and security events for those attempts
+    if (attemptIds.length > 0) {
+      await Answer.deleteMany({ attemptId: { $in: attemptIds } });
+      await SecurityEvent.deleteMany({ attemptId: { $in: attemptIds } });
+    }
+
+    // Delete attempts themselves
+    await Attempt.deleteMany({ userId: user._id });
+
+    // Delete security events directly tied to user (some may not have attemptId)
+    await SecurityEvent.deleteMany({ userId: user._id });
+
+    // Delete the user
+    await user.deleteOne();
 
     await AuditLog.create({
       userId: req.user._id,
       userEmail: req.user.email,
       action: 'USER_DELETE',
-      description: `User deleted: ${user.email}`,
+      description: `User deleted: ${user.email} (with all associated data)`,
       ipAddress: req.ip,
-      metadata: { deletedUser: user.email, deletedRole: user.role },
+      metadata: { deletedUser: user.email, deletedRole: user.role, deletedAttempts: attemptIds.length },
     });
 
-    return res.status(200).json({ success: true, message: 'User deleted.' });
+    return res.status(200).json({ success: true, message: 'User and all associated data deleted.' });
   } catch (error) {
     next(error);
   }
