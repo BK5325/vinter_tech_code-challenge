@@ -5,8 +5,8 @@ const { AppError } = require('../middleware/errorHandler');
 
 const COOKIE_OPTIONS = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
-  sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+  secure: true, // Always true for cross-site cookies between Vercel/Render
+  sameSite: 'none', // Always 'none' for cross-domain auth
   maxAge: parseInt(process.env.JWT_COOKIE_EXPIRES_IN || '7', 10) * 24 * 60 * 60 * 1000,
 };
 
