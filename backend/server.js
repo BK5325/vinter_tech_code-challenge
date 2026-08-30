@@ -37,17 +37,26 @@ app.use(helmet({
 }));
 
 // ─── CORS ─────────────────────────────────────────────────────────────────────
+const clientUrl = process.env.CLIENT_URL ? process.env.CLIENT_URL.replace(/\/$/, '') : '';
+
 const allowedOrigins = [
-  "https://vinter-tech-code-challenge.onrender.com",
+  clientUrl,
   'http://localhost:3000',
   'http://localhost:5173',
+  'https://vinter-tech-code-challenge-fcn3.vercel.app' // Hardcoded frontend URL
 ].filter(Boolean);
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    // Check against allowed origins (stripping trailing slash from incoming origin just in case)
+    const incomingOrigin = origin.replace(/\/$/, '');
+    if (allowedOrigins.includes(incomingOrigin)) {
       callback(null, true);
     } else {
+      console.warn(`⚠️ CORS blocked request from origin: ${origin}`);
       callback(new Error('Not allowed by CORS'));
     }
   },
