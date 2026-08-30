@@ -15,6 +15,7 @@ export default function StaffLayout() {
   const { user, logout } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const handleLogout = async () => {
     await logout();
@@ -26,7 +27,17 @@ export default function StaffLayout() {
 
   return (
     <div className="app-layout">
-      <aside className="sidebar" role="navigation" aria-label="Staff navigation">
+      {/* Mobile Header */}
+      <div className="mobile-admin-header">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div className="sidebar-logo-icon">⚡</div>
+          <div style={{ fontWeight: 700 }}>Staff Portal</div>
+        </div>
+        <button className="btn btn-icon btn-ghost" onClick={() => setSidebarOpen(true)}>☰</button>
+      </div>
+
+      <div className={`sidebar-overlay ${sidebarOpen ? 'open' : ''}`} onClick={() => setSidebarOpen(false)} />
+      <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`} role="navigation" aria-label="Staff navigation">
         <div className="sidebar-header">
           <div className="sidebar-logo">
             <div className="sidebar-logo-icon">⚡</div>
@@ -35,6 +46,7 @@ export default function StaffLayout() {
               <div className="sidebar-logo-sub">Staff Portal</div>
             </div>
           </div>
+          <button className="btn btn-icon btn-ghost mobile-only-btn" onClick={() => setSidebarOpen(false)}>✕</button>
         </div>
         <nav className="sidebar-nav">
           {NAV.map((item) => (
