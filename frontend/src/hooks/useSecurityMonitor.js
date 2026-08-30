@@ -22,8 +22,10 @@ export const useSecurityMonitor = ({ attemptId, enabled = true, onViolation, onF
     if (!enabledRef.current || !attemptIdRef.current) return;
     try {
       const res = await attemptService.logSecurityEvent(attemptIdRef.current, eventType, metadata);
-      if (res?.data?.attempt && res.data.attempt.status !== 'IN_PROGRESS') {
+      // If backend auto-submitted due to violation threshold, notify caller
+      if (res?.data?.autoSubmitted && res?.data?.attempt) {
         if (onForceSubmit) onForceSubmit(res.data.attempt);
+        return; // Don't call onViolation — we're done
       }
     } catch {
       // Silently fail — don't interrupt the assessment
