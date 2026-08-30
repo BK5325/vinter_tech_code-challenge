@@ -96,11 +96,7 @@ export default function LoginPage() {
           <Link to="/register" className="auth-link">Create account</Link>
         </p>
 
-        <div style={{ marginTop: '1.5rem', padding: '1rem', background: 'var(--color-surface-2)', borderRadius: 'var(--radius)', border: '1px solid var(--color-border)' }}>
-          <div style={{ fontSize: '0.75rem', color: 'var(--color-text-3)', marginBottom: '0.5rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Demo Admin</div>
-          <div style={{ fontSize: '0.8125rem', color: 'var(--color-text-2)', fontFamily: 'var(--font-mono)' }}>
-          </div>
-        </div>
+       
       </div>
     </div>
   );
