@@ -33,9 +33,13 @@ function QuestionPalette({ questions, answers, currentIdx, onNavigate }) {
   const counts = { answered: 0, 'not-answered': 0, review: 0, 'answered-review': 0 };
   questions.forEach((q) => { const s = getStatus(q._id); counts[s] = (counts[s] || 0) + 1; });
 
-  return (
-    <div className="palette-sidebar">
-      <div className="palette-title">Question Navigation</div>
+    <>
+      <div className={`palette-overlay ${isOpen ? 'open' : ''}`} onClick={onClose} />
+      <div className={`palette-sidebar ${isOpen ? 'open' : ''}`}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+          <div className="palette-title">Question Navigation</div>
+          <button className="btn btn-icon btn-ghost close-palette-btn" onClick={onClose}>✕</button>
+        </div>
 
       {/* Legend */}
       <div className="palette-legend">
@@ -70,7 +74,7 @@ function QuestionPalette({ questions, answers, currentIdx, onNavigate }) {
           );
         })}
       </div>
-    </div>
+    </>
   );
 }
 
@@ -249,6 +253,7 @@ export default function ChallengeInterface() {
   const [submitted, setSubmitted] = useState(false);
   const [violations, setViolations] = useState(0);
   const [violationWarning, setViolationWarning] = useState('');
+  const [isPaletteOpen, setIsPaletteOpen] = useState(false);
 
   const autosaveTimerRef = useRef(null);
   const lastSavedRef = useRef(null);
@@ -427,9 +432,12 @@ export default function ChallengeInterface() {
       <div className="challenge-main">
         {/* Header */}
         <header className="challenge-header">
-          <div>
-            <div className="challenge-title">{attempt?.challengeId?.title || 'Challenge'}</div>
-            <div className="challenge-meta">{user?.name} · Question {currentIdx + 1} of {questions.length}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <button className="btn btn-secondary mobile-menu-btn" style={{ display: 'none' }} onClick={() => setIsPaletteOpen(true)}>☰</button>
+            <div>
+              <div className="challenge-title">{attempt?.challengeId?.title || 'Challenge'}</div>
+              <div className="challenge-meta">{user?.name} · Question {currentIdx + 1} of {questions.length}</div>
+            </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             {violationWarning && (
@@ -516,12 +524,13 @@ export default function ChallengeInterface() {
         </nav>
       </div>
 
-      {/* Question Palette Sidebar */}
       <QuestionPalette
         questions={questions}
         answers={answers}
         currentIdx={currentIdx}
-        onNavigate={goTo}
+        onNavigate={(idx) => { goTo(idx); setIsPaletteOpen(false); }}
+        isOpen={isPaletteOpen}
+        onClose={() => setIsPaletteOpen(false)}
       />
 
       {/* Submit Confirmation Modal */}
