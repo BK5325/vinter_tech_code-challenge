@@ -33,6 +33,7 @@ function QuestionPalette({ questions, answers, currentIdx, onNavigate }) {
   const counts = { answered: 0, 'not-answered': 0, review: 0, 'answered-review': 0 };
   questions.forEach((q) => { const s = getStatus(q._id); counts[s] = (counts[s] || 0) + 1; });
 
+  return (
     <>
       <div className={`palette-overlay ${isOpen ? 'open' : ''}`} onClick={onClose} />
       <div className={`palette-sidebar ${isOpen ? 'open' : ''}`}>
@@ -73,6 +74,7 @@ function QuestionPalette({ questions, answers, currentIdx, onNavigate }) {
             </button>
           );
         })}
+      </div>
       </div>
     </>
   );
