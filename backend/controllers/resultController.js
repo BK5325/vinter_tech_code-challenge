@@ -108,9 +108,22 @@ const getAllResults = async (req, res, next) => {
       Attempt.countDocuments(filter),
     ]);
 
+    const results = attempts.map(attempt => {
+      const resultObj = attempt.toObject ? attempt.toObject() : attempt;
+      if (req.user.role === 'PARTICIPANT' && resultObj.challengeId?.scoreVisibility !== 'IMMEDIATE') {
+        delete resultObj.score;
+        delete resultObj.percentage;
+        delete resultObj.correctCount;
+        delete resultObj.wrongCount;
+        delete resultObj.unansweredCount;
+        resultObj.scoreHidden = true;
+      }
+      return resultObj;
+    });
+
     return res.status(200).json({
       success: true,
-      data: { results: attempts, total, page: parseInt(page), totalPages: Math.ceil(total / limit) },
+      data: { results, total, page: parseInt(page), totalPages: Math.ceil(total / limit) },
     });
   } catch (error) { next(error); }
 };
