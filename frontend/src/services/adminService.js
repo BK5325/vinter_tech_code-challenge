@@ -35,12 +35,32 @@ export const reportService = {
   getResults: (params) => api.get('/reports/results', { params }),
   getParticipants: () => api.get('/reports/participants'),
   getSecurity: (params) => api.get('/reports/security', { params }),
-  exportCSV: (params) => {
-    const queryStr = new URLSearchParams(params).toString();
-    window.open(`/api/reports/export/csv?${queryStr}`, '_blank');
+  exportCSV: async (params) => {
+    try {
+      const data = await api.get('/reports/export/csv', { params, responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'reports.csv');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err) {
+      console.error('Error exporting CSV:', err);
+    }
   },
-  exportXLSX: (params) => {
-    const queryStr = new URLSearchParams(params).toString();
-    window.open(`/api/reports/export/xlsx?${queryStr}`, '_blank');
+  exportXLSX: async (params) => {
+    try {
+      const data = await api.get('/reports/export/xlsx', { params, responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'reports.xlsx');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err) {
+      console.error('Error exporting XLSX:', err);
+    }
   },
 };
