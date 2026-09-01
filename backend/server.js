@@ -28,6 +28,11 @@ validateEnv();
 
 const app = express();
 
+// ─── Trust Proxy ──────────────────────────────────────────────────────────────
+// Required for Render (or any reverse proxy) so rate limiters see the real client IPs
+// instead of the load balancer's IP.
+app.set('trust proxy', 1);
+
 // ─── Database Connection ──────────────────────────────────────────────────────
 connectDB();
 
