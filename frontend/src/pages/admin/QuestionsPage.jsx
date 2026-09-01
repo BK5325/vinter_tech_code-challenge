@@ -43,6 +43,9 @@ function QuestionForm({ question, challengeId, onSave, onCancel }) {
     setLoading(true);
     try {
       const payload = { ...form, challengeId };
+      if (payload.questionType === 'SHORT_ANSWER') {
+        payload.options = [];
+      }
       if (question?._id) {
         await questionService.update(question._id, payload);
         toast.success('Question updated.');
