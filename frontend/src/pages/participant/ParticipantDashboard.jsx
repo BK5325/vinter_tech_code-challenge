@@ -89,8 +89,8 @@ export default function ParticipantDashboard() {
                 {results.map((r) => (
                   <tr key={r._id}>
                     <td style={{ fontWeight: 600 }}>{r.challengeId?.title}</td>
-                    <td>{r.score}/{r.totalMarks}</td>
-                    <td><span style={{ fontWeight: 700, color: r.percentage >= 80 ? 'var(--color-success-500)' : r.percentage >= 50 ? 'var(--color-warning-500)' : 'var(--color-danger-500)' }}>{r.percentage?.toFixed(1)}%</span></td>
+                    <td>{r.scoreHidden ? <span className="badge badge-gray">Hidden</span> : `${r.score}/${r.totalMarks}`}</td>
+                    <td>{r.scoreHidden ? '-' : <span style={{ fontWeight: 700, color: r.percentage >= 80 ? 'var(--color-success-500)' : r.percentage >= 50 ? 'var(--color-warning-500)' : 'var(--color-danger-500)' }}>{r.percentage?.toFixed(1)}%</span>}</td>
                     <td><span className={`badge badge-${r.status === 'SUBMITTED' ? 'success' : 'warning'}`}>{r.status === 'AUTO_SUBMITTED' ? 'AUTO' : 'SUBMITTED'}</span></td>
                     <td style={{ fontSize: '0.8125rem', color: 'var(--color-text-3)' }}>{new Date(r.submittedAt).toLocaleDateString()}</td>
                     <td><Link to={`/dashboard/result/${r._id}`} className="btn btn-sm btn-secondary">View</Link></td>

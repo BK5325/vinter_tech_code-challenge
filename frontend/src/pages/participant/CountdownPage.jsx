@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { challengeService } from '../../services/challengeService';
 
-const COUNTDOWN_SECONDS = 60;
+const COUNTDOWN_SECONDS = 10;
 
 export default function CountdownPage() {
   const { challengeId } = useParams();

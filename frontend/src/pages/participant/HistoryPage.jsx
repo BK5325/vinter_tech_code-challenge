@@ -51,17 +51,30 @@ export default function HistoryPage() {
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flexWrap: 'wrap' }}>
                     <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontSize: '1.5rem', fontWeight: 800, color, lineHeight: 1 }}>{pct}%</div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--color-text-3)' }}>{r.score}/{r.totalMarks}</div>
+                      {r.scoreHidden ? (
+                        <>
+                          <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-text-3)', lineHeight: 1 }}>Hidden</div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--color-text-3)' }}>Pending</div>
+                        </>
+                      ) : (
+                        <>
+                          <div style={{ fontSize: '1.5rem', fontWeight: 800, color, lineHeight: 1 }}>{pct}%</div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--color-text-3)' }}>{r.score}/{r.totalMarks}</div>
+                        </>
+                      )}
                     </div>
-                    <div style={{ textAlign: 'center', minWidth: 60 }}>
-                      <div style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--color-success-500)' }}>{r.correctCount}</div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--color-text-3)' }}>Correct</div>
-                    </div>
-                    <div style={{ textAlign: 'center', minWidth: 60 }}>
-                      <div style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--color-danger-500)' }}>{r.wrongCount}</div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--color-text-3)' }}>Wrong</div>
-                    </div>
+                    {!r.scoreHidden && (
+                      <>
+                        <div style={{ textAlign: 'center', minWidth: 60 }}>
+                          <div style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--color-success-500)' }}>{r.correctCount}</div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--color-text-3)' }}>Correct</div>
+                        </div>
+                        <div style={{ textAlign: 'center', minWidth: 60 }}>
+                          <div style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--color-danger-500)' }}>{r.wrongCount}</div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--color-text-3)' }}>Wrong</div>
+                        </div>
+                      </>
+                    )}
                     <div style={{ textAlign: 'center', minWidth: 80 }}>
                       <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--color-text-2)' }}>{Math.floor(r.timeTaken / 60)}m {r.timeTaken % 60}s</div>
                       <div style={{ fontSize: '0.75rem', color: 'var(--color-text-3)' }}>Time</div>
