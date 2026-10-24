@@ -34,6 +34,7 @@ const parseRawQuestions = (text, defaults = {}) => {
 
   const answerRegex = /^\s*(?:Correct\s+Answers?|Correct\s+Options?|Answers?|Ans|Key)\s*[\:\-]\s*(.+)$/i;
   const expectedOutputRegex = /^\s*(?:Expected\s+(?:Output|Answers?|Result)s?|Sample\s+Output|Output)\s*[\:\-]?\s*(.*)$/i;
+  const typeRegex = /^\s*(?:Question\s+)?Type\s*[\:\-]\s*(OMR|MCQ|SHORT_ANSWER|LONG_ANSWER|SHORT|LONG|DESCRIPTIVE|PROGRAMMING)/i;
   const marksRegex = /^\s*(?:Maximum\s+Marks?|Max\s+Marks?|Marks?|Points?|Weightage)\s*[\:\-]\s*(\d+(?:\.\d+)?)/i;
   const inlineMarksRegex = /[\[\(]\s*(\d+(?:\.\d+)?)\s*(?:marks?|pts?|points?)\s*[\]\)]/i;
   const negativeMarksRegex = /^\s*(?:Negative(?:\s+Marks?)?|Penalty)\s*[\:\-]\s*(\d+(?:\.\d+)?)/i;
@@ -86,6 +87,7 @@ const parseRawQuestions = (text, defaults = {}) => {
     const rawOptions = [];
     let detectedAnswer = null;
     let detectedMultipleAnswers = false;
+    let detectedType = null;
     let detectedMarks = null;
     let detectedNegativeMarks = null;
     let detectedDifficulty = null;
@@ -150,9 +152,10 @@ const parseRawQuestions = (text, defaults = {}) => {
       const catMatch = trimmed.match(categoryRegex);
       const ansMatch = trimmed.match(answerRegex);
       const expOutMatch = trimmed.match(expectedOutputRegex);
+      const typeMatch = trimmed.match(typeRegex);
 
       if (isParsingExplanation) {
-        if (!marksMatch && !negMatch && !diffMatch && !catMatch && !ansMatch && !expOutMatch) {
+        if (!marksMatch && !negMatch && !diffMatch && !catMatch && !ansMatch && !expOutMatch && !typeMatch) {
           detectedExplanation += (detectedExplanation ? '\n' : '') + trimmed;
           continue;
         } else {
@@ -161,13 +164,24 @@ const parseRawQuestions = (text, defaults = {}) => {
       }
 
       if (isParsingExpectedOutput) {
-        if (!marksMatch && !negMatch && !diffMatch && !catMatch && !ansMatch) {
+        if (!marksMatch && !negMatch && !diffMatch && !catMatch && !ansMatch && !typeMatch) {
           detectedExpectedOutputLines.push(trimmed);
           questionTextLines.push(line);
           continue;
         } else {
           isParsingExpectedOutput = false;
         }
+      }
+
+      if (typeMatch) {
+        const rawType = typeMatch[1].toUpperCase();
+        if (rawType === 'OMR') detectedType = 'OMR';
+        else if (rawType === 'MCQ') detectedType = 'MCQ';
+        else if (rawType.startsWith('SHORT')) detectedType = 'SHORT_ANSWER';
+        else if (rawType.startsWith('LONG') || rawType === 'DESCRIPTIVE' || rawType === 'PROGRAMMING') detectedType = 'LONG_ANSWER';
+        inOptionsPhase = false;
+        isParsingExpectedOutput = false;
+        continue;
       }
 
       if (expOutMatch) {
@@ -257,30 +271,52 @@ const parseRawQuestions = (text, defaults = {}) => {
     }
     const questionText = questionTextLines.join('\n');
 
-    let questionType = 'MCQ';
+    let questionType = 'OMR';
     let multipleCorrect = false;
 
     if (rawOptions.length >= 2) {
-      if (detectedMultipleAnswers || Array.isArray(detectedAnswer)) {
+      if (detectedType === 'MCQ') {
         questionType = 'MCQ';
-        multipleCorrect = true;
-      } else {
-        questionType = 'MCQ';
+        multipleCorrect = detectedMultipleAnswers || Array.isArray(detectedAnswer);
+      } else if (detectedType === 'OMR') {
+        questionType = 'OMR';
         multipleCorrect = false;
+      } else if (format === 'OMR') {
+        questionType = 'OMR';
+        multipleCorrect = false;
+      } else if (format === 'MCQ') {
+        questionType = 'MCQ';
+        multipleCorrect = detectedMultipleAnswers || Array.isArray(detectedAnswer);
+      } else {
+        // AUTO detection for options
+        if (
+          detectedMultipleAnswers ||
+          Array.isArray(detectedAnswer) ||
+          /\b(?:select all|choose all|multiple correct|all correct)\b/i.test(questionText)
+        ) {
+          questionType = 'MCQ';
+          multipleCorrect = true;
+        } else {
+          // Single choice is OMR
+          questionType = 'OMR';
+          multipleCorrect = false;
+        }
       }
     } else {
       const lowerText = questionText.toLowerCase();
       const hasDescriptiveKeyword = /\b(explain|describe|discuss|elaborate|difference between|compare|advantages and disadvantages|write a python program|write a program|write code|write a python function|programming question)\b/i.test(lowerText);
-      if (hasDescriptiveKeyword || (detectedMarks && detectedMarks >= 5) || detectedExpectedOutputLines.length > 0) {
+      if (
+        detectedType === 'LONG_ANSWER' ||
+        format === 'LONG_ANSWER' ||
+        hasDescriptiveKeyword ||
+        (detectedMarks && detectedMarks >= 5) ||
+        detectedExpectedOutputLines.length > 0
+      ) {
         questionType = 'LONG_ANSWER';
       } else {
         questionType = 'SHORT_ANSWER';
       }
     }
-
-    if (format === 'LONG_ANSWER') questionType = 'LONG_ANSWER';
-    else if (format === 'SHORT_ANSWER') questionType = 'SHORT_ANSWER';
-    else if (format === 'MCQ' && rawOptions.length >= 2) questionType = 'MCQ';
 
     const options = rawOptions.map((opt, oIdx) => ({
       _id: generateTempId(),
@@ -292,7 +328,7 @@ const parseRawQuestions = (text, defaults = {}) => {
     let resolvedCorrectAnswer = '';
     let answerStatus = 'VALID';
 
-    if (questionType === 'MCQ') {
+    if (questionType === 'MCQ' || questionType === 'OMR') {
       if (!detectedAnswer && detectedAnswer !== 0) {
         answerStatus = 'MISSING_ANSWER';
       } else if (multipleCorrect || Array.isArray(detectedAnswer)) {
@@ -347,7 +383,7 @@ const parseRawQuestions = (text, defaults = {}) => {
     let status = 'VALID';
     if (!questionText.trim()) {
       status = 'INVALID';
-    } else if (questionType === 'MCQ' && options.length < 2) {
+    } else if ((questionType === 'MCQ' || questionType === 'OMR') && options.length < 2) {
       status = 'INVALID_OPTIONS';
     } else if (answerStatus === 'MISSING_ANSWER') {
       status = 'MISSING_ANSWER';
