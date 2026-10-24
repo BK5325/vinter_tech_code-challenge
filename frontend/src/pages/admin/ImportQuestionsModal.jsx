@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { parseRawQuestions } from '../../utils/questionParser';
+import api from '../../services/api';
 import { questionService } from '../../services/questionService';
 import { useToast } from '../../context/ToastContext';
 
@@ -60,7 +61,7 @@ export default function ImportQuestionsModal({ isOpen, onClose, challengeId, cha
       // Update status if correct answer is filled in
       if (field === 'correctAnswer') {
         const q = next[index];
-        if (q.questionType === 'MCQ') {
+        if (q.questionType === 'MCQ' || q.questionType === 'OMR') {
           const hasAns = Array.isArray(value) ? value.length > 0 : Boolean(value);
           q.status = hasAns ? 'VALID' : 'MISSING_ANSWER';
         } else {
@@ -99,14 +100,14 @@ export default function ImportQuestionsModal({ isOpen, onClose, challengeId, cha
       return;
     }
 
-    // Validation checks
+    // Validation checks for OMR and MCQ
     const missingAnswers = parsedQuestions.filter(
-      (q) => q.questionType === 'MCQ' && (!q.correctAnswer || (Array.isArray(q.correctAnswer) && q.correctAnswer.length === 0))
+      (q) => (q.questionType === 'MCQ' || q.questionType === 'OMR') && (!q.correctAnswer || (Array.isArray(q.correctAnswer) && q.correctAnswer.length === 0))
     );
 
     if (missingAnswers.length > 0) {
       toast.error(
-        `${missingAnswers.length} MCQ question(s) are missing correct answers. Please fill them in before importing.`
+        `${missingAnswers.length} question(s) are missing correct answers. Please fill them in before importing.`
       );
       return;
     }
@@ -121,7 +122,7 @@ export default function ImportQuestionsModal({ isOpen, onClose, challengeId, cha
           questionType: q.questionType,
           options: q.options ? q.options.map((o) => ({ text: o.text })) : [],
           correctAnswer: q.correctAnswer,
-          multipleCorrect: q.multipleCorrect,
+          multipleCorrect: Boolean(q.multipleCorrect),
           marks: q.marks,
           negativeMarks: q.negativeMarks,
           difficulty: q.difficulty,
@@ -131,8 +132,14 @@ export default function ImportQuestionsModal({ isOpen, onClose, challengeId, cha
         })),
       };
 
-      const res = await questionService.bulkImport(payload);
-      toast.success(res.data.message || `Successfully imported ${parsedQuestions.length} questions!`);
+      // Resilient invocation: supports questionService.bulkImport or direct api.post
+      const importFn = (typeof questionService?.bulkImport === 'function')
+        ? questionService.bulkImport
+        : (data) => api.post('/questions/bulk-import', data);
+
+      const res = await importFn(payload);
+      const successMsg = res?.message || res?.data?.message || `Successfully imported ${parsedQuestions.length} questions!`;
+      toast.success(successMsg);
       onImportSuccess(targetChallengeId);
       onClose();
     } catch (err) {
@@ -266,10 +273,11 @@ export default function ImportQuestionsModal({ isOpen, onClose, challengeId, cha
                 <div className="form-group">
                   <label className="form-label">Question Format</label>
                   <select className="form-select" value={format} onChange={(e) => setFormat(e.target.value)}>
-                    <option value="AUTO">Auto Detect (MCQ / Short / Long)</option>
-                    <option value="MCQ">Standard MCQ with Options</option>
+                    <option value="AUTO">Auto Detect (OMR / MCQ / Short / Long)</option>
+                    <option value="OMR">OMR (Single Choice with Radio)</option>
+                    <option value="MCQ">MCQ (Multiple Choice with Checkbox)</option>
                     <option value="SHORT_ANSWER">Short Answer</option>
-                    <option value="LONG_ANSWER">Long Descriptive Answer</option>
+                    <option value="LONG_ANSWER">Long Descriptive / Programming</option>
                   </select>
                 </div>
 
@@ -542,9 +550,10 @@ Category: Python Fundamentals`);
                                 value={q.questionType}
                                 onChange={(e) => handleQuestionChange(idx, 'questionType', e.target.value)}
                               >
-                                <option value="MCQ">MCQ</option>
+                                <option value="OMR">OMR (Single Choice)</option>
+                                <option value="MCQ">MCQ (Multiple Choice)</option>
                                 <option value="SHORT_ANSWER">Short Answer</option>
-                                <option value="LONG_ANSWER">Long Answer</option>
+                                <option value="LONG_ANSWER">Long Answer (Descriptive / Programming)</option>
                               </select>
                             </div>
 
@@ -596,8 +605,8 @@ Category: Python Fundamentals`);
                             </div>
                           </div>
 
-                          {/* Options editor if MCQ */}
-                          {q.questionType === 'MCQ' && hasOptions && (
+                          {/* Options editor if MCQ or OMR */}
+                          {(q.questionType === 'MCQ' || q.questionType === 'OMR') && hasOptions && (
                             <div style={{ marginTop: '0.5rem' }}>
                               <label className="form-label">Options & Correct Answer</label>
                               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
@@ -645,10 +654,12 @@ Category: Python Fundamentals`);
                             </div>
                           )}
 
-                          {/* Correct Answer / Expected Answer editor if not MCQ */}
-                          {q.questionType !== 'MCQ' && (
+                          {/* Correct Answer / Expected Answer editor if not MCQ/OMR */}
+                          {q.questionType !== 'MCQ' && q.questionType !== 'OMR' && (
                             <div className="form-group">
-                              <label className="form-label required">Expected Answer</label>
+                              <label className="form-label required">
+                                {q.questionType === 'LONG_ANSWER' ? 'Expected Output / Evaluation Rubric' : 'Expected Short Answer'}
+                              </label>
                               <textarea
                                 className="form-textarea"
                                 rows={3}
@@ -689,8 +700,8 @@ Category: Python Fundamentals`);
                             {q.questionText}
                           </div>
 
-                          {/* Options display */}
-                          {q.questionType === 'MCQ' && hasOptions && (
+                          {/* Options display for OMR / MCQ */}
+                          {(q.questionType === 'MCQ' || q.questionType === 'OMR') && hasOptions && (
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.5rem', marginBottom: '0.5rem' }}>
                               {q.options.map((opt) => {
                                 const isCorrect = Array.isArray(q.correctAnswer)
@@ -722,8 +733,8 @@ Category: Python Fundamentals`);
                             </div>
                           )}
 
-                          {/* Answer display for Short/Long Answer */}
-                          {q.questionType !== 'MCQ' && (
+                          {/* Answer display for Short Answer */}
+                          {q.questionType === 'SHORT_ANSWER' && (
                             <div style={{ fontSize: '0.875rem', color: 'var(--color-text-3)', marginTop: '0.25rem' }}>
                               Expected Answer:{' '}
                               <span style={{ color: 'var(--color-success-500)', fontWeight: 600 }}>
@@ -731,6 +742,28 @@ Category: Python Fundamentals`);
                               </span>
                             </div>
                           )}
+
+                          {/* Answer display for Long Answer */}
+                          {q.questionType === 'LONG_ANSWER' && (
+                            <div
+                              style={{
+                                marginTop: '0.5rem',
+                                padding: '0.75rem',
+                                background: 'rgba(34, 197, 94, 0.05)',
+                                border: '1px solid rgba(34, 197, 94, 0.2)',
+                                borderRadius: 'var(--radius)',
+                                fontSize: '0.875rem',
+                              }}
+                            >
+                              <div style={{ fontWeight: 600, color: 'var(--color-success-500)', marginBottom: '0.25rem' }}>
+                                Expected Output / Model Solution:
+                              </div>
+                              <div style={{ whiteSpace: 'pre-wrap', color: 'var(--color-text-2)', fontFamily: 'var(--font-mono)' }}>
+                                {q.correctAnswer || '(No model answer provided)'}
+                              </div>
+                            </div>
+                          )}
+
 
                           {q.explanation && (
                             <div style={{ fontSize: '0.8rem', color: 'var(--color-text-4)', marginTop: '0.25rem' }}>
