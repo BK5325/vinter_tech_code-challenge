@@ -140,6 +140,30 @@ export default function ResultPage() {
                       <span style={{ color: 'var(--color-text-3)' }}>Correct: <strong style={{ color: 'var(--color-success-500)' }}>{a.question.correctAnswer}</strong></span>
                     </div>
                   )}
+                  {a.question.questionType === 'LONG_ANSWER' && (
+                    <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.875rem' }}>
+                      <div style={{ padding: '0.75rem', background: 'var(--color-surface-2)', borderRadius: 'var(--radius)', border: '1px solid var(--color-border)' }}>
+                        <div style={{ fontWeight: 600, color: 'var(--color-text-3)', marginBottom: '0.25rem' }}>Your Response:</div>
+                        <div style={{ whiteSpace: 'pre-wrap', color: 'var(--color-text)' }}>{a.answerData || '(no response provided)'}</div>
+                      </div>
+                      {a.question.correctAnswer && (
+                        <div style={{ padding: '0.75rem', background: 'rgba(34,197,94,0.06)', borderRadius: 'var(--radius)', border: '1px solid rgba(34,197,94,0.2)' }}>
+                          <div style={{ fontWeight: 600, color: 'var(--color-success-500)', marginBottom: '0.25rem' }}>Expected Answer / Evaluation Guidelines:</div>
+                          <div style={{ whiteSpace: 'pre-wrap', color: 'var(--color-text-2)' }}>{a.question.correctAnswer}</div>
+                        </div>
+                      )}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', marginTop: '0.25rem' }}>
+                        <span className={`badge ${a.evaluationStatus === 'EVALUATED' ? 'badge-success' : 'badge-warning'}`}>
+                          {a.evaluationStatus === 'EVALUATED' ? 'Evaluated' : '⏳ Pending Evaluation'}
+                        </span>
+                        {a.evaluatorFeedback && (
+                          <span style={{ color: 'var(--color-text-3)' }}>
+                            Feedback: <em style={{ color: 'var(--color-text-2)' }}>{a.evaluatorFeedback}</em>
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
                   {a.question.explanation && (
                     <div style={{ marginTop: '0.75rem', padding: '0.75rem', background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: 'var(--radius)', fontSize: '0.875rem', color: 'var(--color-text-2)' }}>
                       💡 {a.question.explanation}

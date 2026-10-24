@@ -234,6 +234,29 @@ function AnswerArea({ question, savedAnswer, optionOrder, onAnswer }) {
     );
   }
 
+  if (question.questionType === 'LONG_ANSWER') {
+    return (
+      <div>
+        <label htmlFor="long-answer-input" className="form-label mb-2" style={{ display: 'block' }}>
+          Your Detailed Response
+        </label>
+        <textarea
+          id="long-answer-input"
+          className="form-textarea"
+          rows={8}
+          placeholder="Type your detailed explanation or answer here..."
+          value={selected || ''}
+          onChange={(e) => onAnswer(e.target.value || null)}
+          style={{ width: '100%', minHeight: 180, fontFamily: 'inherit', fontSize: '0.95rem', lineHeight: '1.6' }}
+        />
+        <div className="form-hint mt-2" style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <span>Descriptive answers are evaluated based on guidelines and criteria.</span>
+          <span>{selected ? String(selected).length : 0} characters</span>
+        </div>
+      </div>
+    );
+  }
+
   return null;
 }
 
