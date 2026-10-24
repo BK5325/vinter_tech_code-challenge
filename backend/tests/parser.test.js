@@ -74,7 +74,7 @@ Marks: 2`;
     // Question 1 assertions
     const q1 = result.questions[0];
     expect(q1.questionText).toContain("x = 10\nprint(type(x))");
-    expect(q1.questionType).toBe('MCQ');
+    expect(q1.questionType).toBe('OMR');
     expect(q1.options).toHaveLength(4);
     expect(q1.options[2].text).toBe("<class 'int'>");
     expect(q1.correctAnswer).toBe('C');
@@ -1017,9 +1017,9 @@ Category: Algorithms i actually gave this as an input but i parse to only one qu
     expect(q1.category).toBe('Python Fundamentals');
     expect(q1.status).toBe('VALID');
 
-    // Q2 check
+    // Q2 check (Single choice -> OMR)
     const q2 = result.questions[1];
-    expect(q2.questionType).toBe('MCQ');
+    expect(q2.questionType).toBe('OMR');
     expect(q2.multipleCorrect).toBe(false);
     expect(q2.correctAnswer).toBe('C');
     expect(q2.options).toHaveLength(4);
@@ -1046,5 +1046,39 @@ Category: Algorithms i actually gave this as an input but i parse to only one qu
     expect(q50.correctAnswer).toContain('["eat", "tea", "ate"]');
     expect(q50.status).toBe('VALID');
   });
+
+  test('Supports explicit Type tags for OMR, MCQ, SHORT_ANSWER, and LONG_ANSWER', () => {
+    const raw = `1. Single choice question
+Type: OMR
+A. Opt 1
+B. Opt 2
+Answer: A
+
+2. Multiple select question
+Type: MCQ
+A. Opt 1
+B. Opt 2
+Answers: A, B
+
+3. Short answer question
+Type: Short Answer
+What is the keyword?
+Answer: def
+
+4. Long answer question
+Type: Long Answer
+Describe how Python memory management works.
+Expected Output: Reference counting and cyclic garbage collection.
+Marks: 10`;
+
+    const result = parseRawQuestions(raw);
+    expect(result.questions).toHaveLength(4);
+    expect(result.questions[0].questionType).toBe('OMR');
+    expect(result.questions[1].questionType).toBe('MCQ');
+    expect(result.questions[2].questionType).toBe('SHORT_ANSWER');
+    expect(result.questions[3].questionType).toBe('LONG_ANSWER');
+    expect(result.summary.valid).toBe(4);
+  });
 });
+
 
