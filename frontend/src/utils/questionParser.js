@@ -25,16 +25,20 @@ export const parseRawQuestions = (text, defaults = {}) => {
   const questionBlocks = [];
   let currentBlock = [];
 
-  const questionNumberRegex = /^\s*(?:(?:Q(?:uestion)?\s*[\.\:\-]?\s*)?(\d+)[\.\)\:\-\]]|\((\d+)\)|\[(\d+)\])\s+(.*)$/i;
+  // Matches "Question 1:", "Question 1", "Q1:", "1.", "1)", "(1)", "[1]", "Programming Question 1:", etc.
+  // with or without trailing question text on the same line
+  const questionNumberRegex = /^\s*(?:(?:(?:Programming\s+)?(?:Question|Problem)|Q)\s*[\.\:\-]?\s*(\d+)[\.\)\:\-\]]?|(\d+)[\.\)\:\-\]]|\((\d+)\)|\[(\d+)\])\s*(.*)$/i;
   const optionRegex = /^\s*(?:\(?([A-Za-z])[\.\)\:\-]\s+|\[([A-Za-z])\]\s*)(.+)$/;
 
-  const answerRegex = /^\s*(?:Correct\s+Answers?|Correct\s+Options?|Answers?|Ans)\s*[\:\-]\s*(.+)$/i;
-  const marksRegex = /^\s*(?:Maximum\s+Marks?|Max\s+Marks?|Marks?|Points?)\s*[\:\-]\s*(\d+(?:\.\d+)?)/i;
+  const answerRegex = /^\s*(?:Correct\s+Answers?|Correct\s+Options?|Answers?|Ans|Key)\s*[\:\-]\s*(.+)$/i;
+  const expectedOutputRegex = /^\s*(?:Expected\s+(?:Output|Answers?|Result)s?|Sample\s+Output|Output)\s*[\:\-]?\s*(.*)$/i;
+  const marksRegex = /^\s*(?:Maximum\s+Marks?|Max\s+Marks?|Marks?|Points?|Weightage)\s*[\:\-]\s*(\d+(?:\.\d+)?)/i;
   const inlineMarksRegex = /[\[\(]\s*(\d+(?:\.\d+)?)\s*(?:marks?|pts?|points?)\s*[\]\)]/i;
-  const negativeMarksRegex = /^\s*(?:Negative\s+Marks?|Negative)\s*[\:\-]\s*(\d+(?:\.\d+)?)/i;
-  const difficultyRegex = /^\s*Difficulty\s*[\:\-]\s*(Easy|Medium|Hard)/i;
-  const categoryRegex = /^\s*(?:Category|Topic)\s*[\:\-]\s*(.+)$/i;
-  const explanationRegex = /^\s*(?:Explanation|Explain|Solution)\s*[\:\-]\s*(.*)$/i;
+  const negativeMarksRegex = /^\s*(?:Negative(?:\s+Marks?)?|Penalty)\s*[\:\-]\s*(\d+(?:\.\d+)?)/i;
+  const difficultyRegex = /^\s*(?:Difficulty(?:\s+Level)?|Level)\s*[\:\-]\s*(Easy|Medium|Hard)/i;
+  const categoryRegex = /^\s*(?:Category|Topic|Subject|Module|Tag|Section)\s*[\:\-]\s*(.+)$/i;
+  const explanationRegex = /^\s*(?:Explanation|Explain|Solution|Rationale)\s*[\:\-]\s*(.*)$/i;
+  const chatterRegex = /^\s*(?:i\s+actually|please\s+(?:make\s+sure|note)|make\s+sure\b).*$/i;
 
   let firstQuestionFound = false;
 
@@ -86,13 +90,17 @@ export const parseRawQuestions = (text, defaults = {}) => {
     let detectedCategory = null;
     let detectedExplanation = '';
     let isParsingExplanation = false;
+    let isParsingExpectedOutput = false;
+    let detectedExpectedOutputLines = [];
     let inOptionsPhase = false;
 
     const firstLine = blockLines[0] || '';
     const firstMatch = firstLine.trim().match(questionNumberRegex);
-    let startText = firstLine;
+    let startText = '';
     if (firstMatch) {
-      startText = firstMatch[4] || '';
+      startText = firstMatch[firstMatch.length - 1] || '';
+    } else {
+      startText = firstLine;
     }
 
     const inlineMarkMatch = startText.match(inlineMarksRegex);
@@ -109,9 +117,16 @@ export const parseRawQuestions = (text, defaults = {}) => {
       const line = blockLines[i];
       const trimmed = line.trim();
 
+      if (chatterRegex.test(trimmed)) {
+        continue;
+      }
+
       if (!trimmed) {
         if (isParsingExplanation) {
           detectedExplanation += '\n';
+        } else if (isParsingExpectedOutput) {
+          detectedExpectedOutputLines.push('');
+          questionTextLines.push('');
         } else if (!inOptionsPhase) {
           questionTextLines.push('');
         }
@@ -121,15 +136,21 @@ export const parseRawQuestions = (text, defaults = {}) => {
       const expMatch = trimmed.match(explanationRegex);
       if (expMatch) {
         isParsingExplanation = true;
+        isParsingExpectedOutput = false;
+        inOptionsPhase = false;
         detectedExplanation = expMatch[1] || '';
         continue;
       }
 
+      const marksMatch = trimmed.match(marksRegex);
+      const negMatch = trimmed.match(negativeMarksRegex);
+      const diffMatch = trimmed.match(difficultyRegex);
+      const catMatch = trimmed.match(categoryRegex);
+      const ansMatch = trimmed.match(answerRegex);
+      const expOutMatch = trimmed.match(expectedOutputRegex);
+
       if (isParsingExplanation) {
-        const ansM = trimmed.match(answerRegex);
-        const marksM = trimmed.match(marksRegex);
-        const negM = trimmed.match(negativeMarksRegex);
-        if (!ansM && !marksM && !negM) {
+        if (!marksMatch && !negMatch && !diffMatch && !catMatch && !ansMatch && !expOutMatch) {
           detectedExplanation += (detectedExplanation ? '\n' : '') + trimmed;
           continue;
         } else {
@@ -137,13 +158,36 @@ export const parseRawQuestions = (text, defaults = {}) => {
         }
       }
 
-      const ansMatch = trimmed.match(answerRegex);
+      if (isParsingExpectedOutput) {
+        if (!marksMatch && !negMatch && !diffMatch && !catMatch && !ansMatch) {
+          detectedExpectedOutputLines.push(trimmed);
+          questionTextLines.push(line);
+          continue;
+        } else {
+          isParsingExpectedOutput = false;
+        }
+      }
+
+      if (expOutMatch) {
+        isParsingExpectedOutput = true;
+        isParsingExplanation = false;
+        inOptionsPhase = false;
+        questionTextLines.push(line);
+        if (expOutMatch[1] && expOutMatch[1].trim()) {
+          detectedExpectedOutputLines.push(expOutMatch[1].trim());
+        }
+        continue;
+      }
+
       if (ansMatch) {
-        const rawAns = ansMatch[1].trim();
+        inOptionsPhase = false;
+        isParsingExpectedOutput = false;
+        isParsingExplanation = false;
+        const rawAns = ansMatch[1].trim().replace(/[\.\s]+$/, '');
         if (rawAns.includes(',') || rawAns.includes(';') || /\b(?:and|&)\b/i.test(rawAns)) {
           const splitAns = rawAns
             .split(/[,;&]|\band\b/i)
-            .map((s) => s.trim().replace(/^[\(\[]|[\)\]]$/g, ''))
+            .map((s) => s.trim().replace(/^[\(\[]|[\)\]]$/g, '').replace(/[\.\s]+$/, ''))
             .filter(Boolean);
           if (splitAns.length > 1) {
             detectedAnswer = splitAns;
@@ -155,27 +199,33 @@ export const parseRawQuestions = (text, defaults = {}) => {
         continue;
       }
 
-      const marksMatch = trimmed.match(marksRegex);
       if (marksMatch) {
         detectedMarks = parseFloat(marksMatch[1]);
+        inOptionsPhase = false;
+        isParsingExpectedOutput = false;
         continue;
       }
 
-      const negMatch = trimmed.match(negativeMarksRegex);
       if (negMatch) {
         detectedNegativeMarks = parseFloat(negMatch[1]);
+        inOptionsPhase = false;
+        isParsingExpectedOutput = false;
         continue;
       }
 
-      const diffMatch = trimmed.match(difficultyRegex);
       if (diffMatch) {
         detectedDifficulty = diffMatch[1].toUpperCase();
+        inOptionsPhase = false;
+        isParsingExpectedOutput = false;
         continue;
       }
 
-      const catMatch = trimmed.match(categoryRegex);
       if (catMatch) {
-        detectedCategory = catMatch[1].trim();
+        let cat = catMatch[1].trim();
+        cat = cat.replace(/\s+(?:i\s+actually|please\b|note[\:\s]|make\s+sure\b).*$/i, '').trim();
+        detectedCategory = cat;
+        inOptionsPhase = false;
+        isParsingExpectedOutput = false;
         continue;
       }
 
@@ -196,6 +246,10 @@ export const parseRawQuestions = (text, defaults = {}) => {
       questionTextLines.push(line);
     }
 
+    if (!detectedAnswer && detectedExpectedOutputLines.length > 0) {
+      detectedAnswer = detectedExpectedOutputLines.filter((l) => l.trim()).join('\n').trim();
+    }
+
     while (questionTextLines.length > 0 && !questionTextLines[questionTextLines.length - 1].trim()) {
       questionTextLines.pop();
     }
@@ -214,8 +268,8 @@ export const parseRawQuestions = (text, defaults = {}) => {
       }
     } else {
       const lowerText = questionText.toLowerCase();
-      const hasDescriptiveKeyword = /\b(explain|describe|discuss|elaborate|difference between|compare|advantages and disadvantages|write a python program|write a program|write code)\b/i.test(lowerText);
-      if (hasDescriptiveKeyword || (detectedMarks && detectedMarks >= 5)) {
+      const hasDescriptiveKeyword = /\b(explain|describe|discuss|elaborate|difference between|compare|advantages and disadvantages|write a python program|write a program|write code|write a python function|programming question)\b/i.test(lowerText);
+      if (hasDescriptiveKeyword || (detectedMarks && detectedMarks >= 5) || detectedExpectedOutputLines.length > 0) {
         questionType = 'LONG_ANSWER';
       } else {
         questionType = 'SHORT_ANSWER';
