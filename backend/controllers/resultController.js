@@ -27,7 +27,7 @@ const getResult = async (req, res, next) => {
     const resultData = {
       attemptId: attempt._id,
       participant: attempt.userId,
-      challenge: { _id: challenge._id, title: challenge.title },
+      challenge: { _id: challenge?._id, title: challenge?.title || 'Unknown Challenge' },
       status: attempt.status,
       submissionReason: attempt.submissionReason,
       submittedAt: attempt.submittedAt,
@@ -36,7 +36,7 @@ const getResult = async (req, res, next) => {
     };
 
     // Score visibility
-    if (req.user.role !== 'PARTICIPANT' || challenge.scoreVisibility === 'IMMEDIATE') {
+    if (req.user.role !== 'PARTICIPANT' || challenge?.scoreVisibility === 'IMMEDIATE') {
       resultData.score = attempt.score;
       resultData.totalMarks = attempt.totalMarks;
       resultData.percentage = attempt.percentage;
@@ -48,27 +48,40 @@ const getResult = async (req, res, next) => {
     }
 
     // Correct answer visibility
-    if (req.user.role !== 'PARTICIPANT' || challenge.correctAnswerVisibility === 'SHOW_AFTER_SUBMIT') {
+    if (req.user.role !== 'PARTICIPANT' || challenge?.correctAnswerVisibility === 'SHOW_AFTER_SUBMIT') {
       const answers = await Answer.find({ attemptId: attempt._id }).populate('questionId');
-      resultData.answers = answers.map((a) => ({
-        question: {
-          _id: a.questionId._id,
-          questionText: a.questionId.questionText,
-          questionType: a.questionId.questionType,
-          options: a.questionId.options,
-          correctAnswer: a.questionId.correctAnswer,
-          explanation: a.questionId.explanation,
-          marks: a.questionId.marks,
-        },
-        answerData: a.answerData,
-        isCorrect: a.isCorrect,
-        marksAwarded: a.marksAwarded,
-        markedForReview: a.markedForReview,
-      }));
+      resultData.answers = answers.map((a) => {
+        const q = a.questionId || {
+          _id: a._id,
+          questionText: '[Question deleted]',
+          questionType: 'SHORT_ANSWER',
+          options: [],
+          correctAnswer: '',
+          marks: a.marksAwarded || 0,
+        };
+        return {
+          _id: a._id,
+          question: {
+            _id: q._id,
+            questionText: q.questionText,
+            questionType: q.questionType,
+            options: q.options || [],
+            correctAnswer: q.correctAnswer,
+            explanation: q.explanation || '',
+            marks: q.marks,
+          },
+          answerData: a.answerData,
+          isCorrect: a.isCorrect,
+          marksAwarded: a.marksAwarded,
+          markedForReview: a.markedForReview,
+          evaluationStatus: a.evaluationStatus,
+          evaluatorFeedback: a.evaluatorFeedback,
+        };
+      });
     }
 
     // Rank visibility
-    if (challenge.rankVisibility === 'SHOW' || req.user.role !== 'PARTICIPANT') {
+    if (challenge && (challenge.rankVisibility === 'SHOW' || req.user.role !== 'PARTICIPANT')) {
       const betterAttempts = await Attempt.countDocuments({
         challengeId: challenge._id,
         status: { $in: ['SUBMITTED', 'AUTO_SUBMITTED'] },
@@ -128,4 +141,72 @@ const getAllResults = async (req, res, next) => {
   } catch (error) { next(error); }
 };
 
-module.exports = { getResult, getAllResults };
+// ─── Manual Evaluation for Descriptive Answers ────────────────────────────────
+const evaluateAnswer = async (req, res, next) => {
+  try {
+    const { answerId } = req.params;
+    const { marksAwarded, feedback = '' } = req.body;
+
+    const answer = await Answer.findById(answerId).populate('questionId');
+    if (!answer) {
+      return res.status(404).json({ success: false, message: 'Answer not found.' });
+    }
+
+    const question = answer.questionId;
+    if (!question) {
+      return res.status(404).json({ success: false, message: 'Associated question not found.' });
+    }
+
+    const parsedMarks = parseFloat(marksAwarded);
+    if (isNaN(parsedMarks) || parsedMarks < 0) {
+      return res.status(400).json({ success: false, message: 'Marks awarded must be a non-negative number.' });
+    }
+
+    if (parsedMarks > question.marks) {
+      return res.status(400).json({
+        success: false,
+        message: `Marks awarded (${parsedMarks}) cannot exceed maximum marks for this question (${question.marks}).`,
+      });
+    }
+
+    answer.marksAwarded = parsedMarks;
+    answer.isCorrect = parsedMarks > 0;
+    answer.evaluatorFeedback = String(feedback || '').trim();
+    answer.evaluationStatus = 'EVALUATED';
+    answer.evaluatedBy = req.user._id;
+    answer.evaluatedAt = new Date();
+    await answer.save();
+
+    // Recalculate attempt score
+    const attempt = await Attempt.findById(answer.attemptId);
+    if (attempt) {
+      const allAnswers = await Answer.find({ attemptId: attempt._id });
+      let newScore = 0;
+      let correctCount = 0;
+      let wrongCount = 0;
+      let unansweredCount = 0;
+
+      for (const a of allAnswers) {
+        newScore += (a.marksAwarded || 0);
+        if (a.isCorrect === true) correctCount++;
+        else if (a.isCorrect === false) wrongCount++;
+        else unansweredCount++;
+      }
+
+      attempt.score = newScore;
+      attempt.correctCount = correctCount;
+      attempt.wrongCount = wrongCount;
+      attempt.unansweredCount = unansweredCount;
+      attempt.percentage = attempt.totalMarks > 0 ? Math.round((newScore / attempt.totalMarks) * 100 * 100) / 100 : 0;
+      await attempt.save();
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Evaluation saved successfully.',
+      data: { answer, attempt },
+    });
+  } catch (error) { next(error); }
+};
+
+module.exports = { getResult, getAllResults, evaluateAnswer };

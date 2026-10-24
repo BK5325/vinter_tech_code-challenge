@@ -162,7 +162,7 @@ const deactivateChallenge = async (req, res, next) => {
 // ─── Get Challenge Questions (for admin/staff — includes correct answers) ─────
 const getChallengeQuestions = async (req, res, next) => {
   try {
-    const questions = await Question.find({ challengeId: req.params.id }).sort({ order: 1 });
+    const questions = await Question.find({ challengeId: req.params.id, isDeleted: { $ne: true } }).sort({ order: 1 });
     return res.status(200).json({ success: true, data: { questions } });
   } catch (error) { next(error); }
 };

@@ -61,7 +61,7 @@ const startAttempt = async (req, res, next) => {
     }
 
     // Get all questions for this challenge
-    let allQuestions = await Question.find({ challengeId });
+    let allQuestions = await Question.find({ challengeId, isDeleted: { $ne: true } });
     if (allQuestions.length === 0) {
       return res.status(400).json({ success: false, message: 'This challenge has no questions yet.' });
     }
