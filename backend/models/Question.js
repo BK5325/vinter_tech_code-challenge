@@ -20,7 +20,7 @@ const questionSchema = new mongoose.Schema(
     },
     questionType: {
       type: String,
-      enum: ['OMR', 'MCQ', 'SHORT_ANSWER'],
+      enum: ['OMR', 'MCQ', 'SHORT_ANSWER', 'LONG_ANSWER'],
       required: true,
     },
     // For OMR and MCQ
@@ -29,15 +29,16 @@ const questionSchema = new mongoose.Schema(
     // For OMR: single option _id string
     // For MCQ: single or array of option _id strings
     // For SHORT_ANSWER: plain text string(s)
+    // For LONG_ANSWER: multiline expected answer / evaluation rubric
     correctAnswer: { type: mongoose.Schema.Types.Mixed, default: null },
 
     // MCQ: single or multiple correct answers
     multipleCorrect: { type: Boolean, default: false },
 
-    // Short answer evaluation
+    // Short and long answer evaluation
     evaluationMode: {
       type: String,
-      enum: ['EXACT', 'CASE_INSENSITIVE', 'TRIMMED'],
+      enum: ['EXACT', 'CASE_INSENSITIVE', 'TRIMMED', 'MANUAL'],
       default: 'CASE_INSENSITIVE',
     },
 
@@ -54,12 +55,14 @@ const questionSchema = new mongoose.Schema(
 
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     order: { type: Number, default: 0 }, // default display order in bank
+    isDeleted: { type: Boolean, default: false },
   },
   { timestamps: true }
 );
 
-questionSchema.index({ challengeId: 1 });
+questionSchema.index({ challengeId: 1, isDeleted: 1 });
 questionSchema.index({ questionType: 1 });
 questionSchema.index({ difficulty: 1 });
+questionSchema.index({ category: 1 });
 
 module.exports = mongoose.model('Question', questionSchema);

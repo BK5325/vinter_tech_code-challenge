@@ -40,8 +40,8 @@ const challengeSchema = new mongoose.Schema(
     // Question types allowed
     allowedQuestionTypes: {
       type: [String],
-      enum: ['OMR', 'MCQ', 'SHORT_ANSWER'],
-      default: ['OMR', 'MCQ', 'SHORT_ANSWER'],
+      enum: ['OMR', 'MCQ', 'SHORT_ANSWER', 'LONG_ANSWER'],
+      default: ['OMR', 'MCQ', 'SHORT_ANSWER', 'LONG_ANSWER'],
     },
 
     status: {
