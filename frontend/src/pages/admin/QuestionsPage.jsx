@@ -408,7 +408,7 @@ export default function QuestionsPage() {
     if (!challengeId) return;
     setLoading(true);
     try {
-      const [chalData, qData, catData] = await Promise.all([
+      const [chalData, qData] = await Promise.all([
         challengeService.getById(challengeId),
         questionService.getAll({
           challengeId,
@@ -420,11 +420,31 @@ export default function QuestionsPage() {
           sortOrder,
           limit: 200,
         }),
-        questionService.getCategories({ challengeId }),
       ]);
-      setChallenge(chalData.data.challenge);
-      setQuestions(qData.data.questions || []);
-      setCategories(catData.data.categories || []);
+
+      const loadedQuestions = qData?.data?.questions || [];
+      setChallenge(chalData?.data?.challenge || null);
+      setQuestions(loadedQuestions);
+
+      // Extract categories dynamically from questions
+      const localCategories = Array.from(
+        new Set(loadedQuestions.map((q) => q.category).filter(Boolean))
+      );
+      setCategories(localCategories);
+
+      // Safely fetch additional categories if the method exists
+      if (typeof questionService.getCategories === 'function') {
+        questionService
+          .getCategories({ challengeId })
+          .then((catRes) => {
+            const serverCats = catRes?.data?.categories || [];
+            if (serverCats.length > 0) {
+              setCategories((prev) => Array.from(new Set([...prev, ...serverCats])));
+            }
+          })
+          .catch(() => {});
+      }
+
       // Clear selection if questions changed or challenge switched
       setSelectedIds(new Set());
     } catch (err) {
