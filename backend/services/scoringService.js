@@ -49,6 +49,14 @@ const evaluateAnswer = (question, answerData) => {
     return { isCorrect, status: isCorrect ? 'CORRECT' : 'WRONG' };
   }
 
+  if (questionType === 'LONG_ANSWER') {
+    if (answerData === null || answerData === undefined || String(answerData).trim() === '') {
+      return { isCorrect: null, status: 'UNANSWERED' };
+    }
+    // Descriptive answers cannot be evaluated with simple string equality
+    return { isCorrect: null, status: 'PENDING_EVALUATION' };
+  }
+
   return { isCorrect: null, status: 'UNANSWERED' };
 };
 
@@ -58,7 +66,7 @@ const evaluateAnswer = (question, answerData) => {
 const calculateMarks = (question, evaluationResult, negativeMarkingEnabled) => {
   const { isCorrect, status } = evaluationResult;
 
-  if (status === 'UNANSWERED') return 0;
+  if (status === 'UNANSWERED' || status === 'PENDING_EVALUATION') return 0;
   if (isCorrect) return question.marks;
   if (negativeMarkingEnabled && question.negativeMarks > 0) {
     return -question.negativeMarks;
@@ -97,36 +105,87 @@ const scoreAttempt = async (attempt, challenge) => {
     const answer = answerMap[qId.toString()];
     const answerData = answer ? answer.answerData : null;
 
-    const evalResult = evaluateAnswer(question, answerData);
-    const marksAwarded = calculateMarks(question, evalResult, challenge.negativeMarking);
+    let marksAwarded = 0;
+    let isCorrect = null;
+    let evalStatus = 'NOT_APPLICABLE';
 
-    score += marksAwarded;
+    if (question.questionType === 'LONG_ANSWER') {
+      const hasAnswer = answerData !== null && answerData !== undefined && String(answerData).trim() !== '';
+      if (!hasAnswer) {
+        unansweredCount++;
+        evalStatus = 'NOT_APPLICABLE';
+      } else if (answer && answer.evaluationStatus === 'EVALUATED') {
+        // Retain manual evaluation marks
+        marksAwarded = typeof answer.marksAwarded === 'number' ? Math.min(question.marks, Math.max(0, answer.marksAwarded)) : 0;
+        isCorrect = marksAwarded > 0;
+        evalStatus = 'EVALUATED';
+        if (marksAwarded === question.marks) correctCount++;
+        else if (marksAwarded === 0) wrongCount++;
+        else correctCount++; // partial marks count toward positive progress
+        score += marksAwarded;
+      } else {
+        // Pending evaluation by administrator / staff
+        evalStatus = 'PENDING';
+        isCorrect = null;
+        marksAwarded = 0;
+      }
 
-    if (evalResult.status === 'CORRECT') correctCount++;
-    else if (evalResult.status === 'WRONG') wrongCount++;
-    else unansweredCount++;
-
-    // Update answer doc
-    if (answer) {
-      answerUpdates.push(
-        Answer.findByIdAndUpdate(answer._id, {
-          isCorrect: evalResult.isCorrect,
-          marksAwarded,
-        })
-      );
+      if (answer) {
+        answerUpdates.push(
+          Answer.findByIdAndUpdate(answer._id, {
+            isCorrect,
+            marksAwarded,
+            evaluationStatus: evalStatus,
+          })
+        );
+      } else {
+        answerUpdates.push(
+          Answer.create({
+            attemptId: attempt._id,
+            questionId: qId,
+            answerData: null,
+            isCorrect: null,
+            marksAwarded: 0,
+            answeredAt: null,
+            markedForReview: false,
+            evaluationStatus: evalStatus,
+          }).catch(() => {})
+        );
+      }
     } else {
-      // Create unanswered answer record
-      answerUpdates.push(
-        Answer.create({
-          attemptId: attempt._id,
-          questionId: qId,
-          answerData: null,
-          isCorrect: null,
-          marksAwarded: 0,
-          answeredAt: null,
-          markedForReview: false,
-        }).catch(() => {}) // may already exist
-      );
+      const evalResult = evaluateAnswer(question, answerData);
+      marksAwarded = calculateMarks(question, evalResult, challenge.negativeMarking);
+
+      score += marksAwarded;
+
+      if (evalResult.status === 'CORRECT') correctCount++;
+      else if (evalResult.status === 'WRONG') wrongCount++;
+      else unansweredCount++;
+
+      // Update answer doc
+      if (answer) {
+        answerUpdates.push(
+          Answer.findByIdAndUpdate(answer._id, {
+            isCorrect: evalResult.isCorrect,
+            marksAwarded,
+            evaluationStatus: 'NOT_APPLICABLE',
+          })
+        );
+      } else {
+        // Create unanswered answer record
+        answerUpdates.push(
+          Answer.create({
+            attemptId: attempt._id,
+            questionId: qId,
+            answerData: null,
+            isCorrect: null,
+            marksAwarded: 0,
+            answeredAt: null,
+            markedForReview: false,
+            evaluationStatus: 'NOT_APPLICABLE',
+          }).catch(() => {})
+        );
+      }
     }
   }
 
